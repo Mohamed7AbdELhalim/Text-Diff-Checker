@@ -1,0 +1,128 @@
+# GitLab CI/CD Configuration
+# إعدادات التكامل المستمر والنشر المستمر
+
+stages:
+  - validate
+  - test
+  - build
+  - deploy
+
+variables:
+  PROJECT_NAME: "text-diff-checker"
+
+# ===== مرحلة التحقق =====
+validate:html:
+  stage: validate
+  image: node:18-alpine
+  script:
+    - echo "🔍 التحقق من صحة HTML..."
+    - npm install -g html-validate
+    - html-validate index.html || true
+  only:
+    - merge_requests
+    - main
+  allow_failure: true
+
+validate:css:
+  stage: validate
+  image: node:18-alpine
+  script:
+    - echo "🎨 التحقق من صحة CSS..."
+    - npm install -g stylelint stylelint-config-standard
+    - echo '{"extends":"stylelint-config-standard"}' > .stylelintrc.json
+    - stylelint "**/*.css" || true
+  only:
+    - merge_requests
+    - main
+  allow_failure: true
+
+validate:js:
+  stage: validate
+  image: node:18-alpine
+  script:
+    - echo "📜 التحقق من صحة JavaScript..."
+    - npm install -g eslint
+    - eslint index.html --ext .js || true
+  only:
+    - merge_requests
+    - main
+  allow_failure: true
+
+# ===== مرحلة الاختبار =====
+test:accessibility:
+  stage: test
+  image: node:18-alpine
+  script:
+    - echo "♿ اختبار إمكانية الوصول..."
+    - npm install -g pa11y
+    - pa11y index.html || true
+  only:
+    - merge_requests
+    - main
+  allow_failure: true
+
+test:performance:
+  stage: test
+  image: node:18-alpine
+  script:
+    - echo "⚡ اختبار الأداء..."
+    - npm install -g lighthouse
+    - lighthouse index.html --output=json --output-path=./lighthouse-report.json || true
+  artifacts:
+    paths:
+      - lighthouse-report.json
+    expire_in: 1 week
+  only:
+    - main
+  allow_failure: true
+
+# ===== مرحلة البناء =====
+build:
+  stage: build
+  image: node:18-alpine
+  script:
+    - echo "🔨 بناء المشروع..."
+    - mkdir -p public
+    - cp index.html public/
+    - cp README.md public/ || true
+    - echo "✅ تم البناء بنجاح!"
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+  only:
+    - main
+
+# ===== مرحلة النشر =====
+pages:
+  stage: deploy
+  script:
+    - echo "🚀 نشر إلى GitLab Pages..."
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+  environment:
+    name: production
+    url: https://$CI_PROJECT_NAMESPACE.gitlab.io/$CI_PROJECT_NAME
+
+# نشر إلى بيئة التطوير
+deploy:staging:
+  stage: deploy
+  script:
+    - echo "🧪 نشر إلى بيئة التطوير..."
+  environment:
+    name: staging
+    url: https://$CI_PROJECT_NAMESPACE.gitlab.io/$CI_PROJECT_NAME/staging
+  only:
+    - develop
+  when: manual
+
+# ===== المهام الإضافية =====
+# تنظيف الذاكرة المؤقتة
+cleanup:
+  stage: .post
+  script:
+    - echo "🧹 تنظيف..."
+  when: always

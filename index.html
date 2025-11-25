@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مقارنة النصوص - Text Diff Checker</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+        }
+        
+        .added {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: inline;
+        }
+        
+        .removed {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-decoration: line-through;
+            display: inline;
+        }
+        
+        .changed {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: inline;
+        }
+        
+        .result-box {
+            min-height: 150px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 2;
+        }
+        
+        textarea {
+            resize: vertical;
+            white-space: pre-wrap;
+        }
+        
+        .tab-active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .view-tab-active {
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .split-view {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .split-view {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .old-text-box {
+            border-right: 4px solid #dc3545;
+        }
+        
+        .new-text-box {
+            border-right: 4px solid #28a745;
+        }
+        
+        .line-number {
+            color: #999;
+            margin-left: 10px;
+            user-select: none;
+            min-width: 30px;
+            display: inline-block;
+            text-align: left;
+        }
+        
+        .diff-line {
+            padding: 2px 0;
+            display: block;
+        }
+        
+        .diff-line:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .placeholder-text {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-6 shadow-lg">
+        <div class="container mx-auto px-4">
+            <h1 class="text-3xl font-bold text-center">🔍 مقارنة النصوص</h1>
+            <p class="text-center mt-2 opacity-90">اكتشف الفروقات بين النصوص بسهولة</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- Mode Selection -->
+        <div class="flex justify-center mb-8">
+            <div class="bg-white rounded-lg p-1 shadow-md inline-flex">
+                <button id="mode2" onclick="switchMode(2)" class="tab-active px-6 py-3 rounded-lg font-medium transition-all duration-300">
+                    مقارنة نصين
+                </button>
+                <button id="mode4" onclick="switchMode(4)" class="px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-100">
+                    مقارنة 4 نصوص
+                </button>
+            </div>
+        </div>
+
+        <!-- Input Section for 2 Texts -->
+        <div id="input2" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <label class="block text-lg font-bold text-gray-700 mb-3">
+                    <span class="inline-block w-8 h-8 bg-blue-500 text-white rounded-full text-center leading-8 ml-2">1</span>
+                    النص الأول (الأصلي)
+                </label>
+                <textarea id="text1" rows="8" class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all" placeholder="أدخل النص الأول هنا..."></textarea>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <label class="block text-lg font-bold text-gray-700 mb-3">
+                    <span class="inline-block w-8 h-8 bg-green-500 text-white rounded-full text-center leading-8 ml-2">2</span>
+                    النص الثاني (المعدل)
+                </label>
+                <textarea id="text2" rows="8" class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all" placeholder="أدخل النص الثاني هنا..."></textarea>
+            </div>
+        </div>
+
+        <!-- Input Section for 4 Texts -->
+        <div id="input4" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <label class="block text-lg font-bold text-gray-700 mb-3">
+                    <span class="inline-block w-8 h-8 bg-blue-500 text-white rounded-full text-center leading-8 ml-2">1</span>
+                    النص الأول
+                </label>
+                <textarea id="text1_4" rows="6" class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all" placeholder="أدخل النص الأول..."></textarea>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <label class="block text-lg font-bold text-gray-700 mb-3">
+                    <span class="inline-block w-8 h-8 bg-green-500 text-white rounded-full text-center leading-8 ml-2">2</span>
+                    النص الثاني
+                </label>
+                <textarea id="text2_4" rows="6" class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all" placeholder="أدخل النص الثاني..."></textarea>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <label class="block text-lg font-bold text-gray-700 mb-3">
+                    <span class="inline-block w-8 h-8 bg-yellow-500 text-white rounded-full text-center leading-8 ml-2">3</span>
+                    النص الثالث
+                </label>
+                <textarea id="text3_4" rows="6" class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all" placeholder="أدخل النص الثالث..."></textarea>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <label class="block text-lg font-bold text-gray-700 mb-3">
+                    <span class="inline-block w-8 h-8 bg-red-500 text-white rounded-full text-center leading-8 ml-2">4</span>
+                    النص الرابع
+                </label>
+                <textarea id="text4_4" rows="6" class="w-full p-4 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all" placeholder="أدخل النص الرابع..."></textarea>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-center gap-4 mb-8">
+            <button onclick="compareTexts()" class="gradient-bg text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                🔎 مقارنة النصوص
+            </button>
+            <button onclick="clearAll()" class="bg-gray-500 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-gray-600 transition-all duration-300">
+                🗑️ مسح الكل
+            </button>
+            <button onclick="loadExample('ar')" class="bg-amber-500 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-amber-600 transition-all duration-300">
+                📝 مثال عربي
+            </button>
+            <button onclick="loadExample('en')" class="bg-teal-500 text-white px-8 py-3 rounded-lg font-bold shadow-lg hover:bg-teal-600 transition-all duration-300">
+                📝 English Example
+            </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="bg-white rounded-xl shadow-lg p-4 mb-6">
+            <h3 class="font-bold text-gray-700 mb-3 text-center">دليل الألوان</h3>
+            <div class="flex flex-wrap justify-center gap-6">
+                <div class="flex items-center gap-2">
+                    <span class="added px-3 py-1">نص مضاف</span>
+                    <span class="text-gray-600">= موجود في النص الجديد فقط</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="removed px-3 py-1">نص محذوف</span>
+                    <span class="text-gray-600">= موجود في النص الأصلي فقط</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="changed px-3 py-1">نص مختلف</span>
+                    <span class="text-gray-600">= تغيير بين النصوص</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">📊 نتائج المقارنة</h2>
+            
+            <!-- Statistics -->
+            <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow p-4 text-center">
+                    <div class="text-3xl font-bold text-blue-500" id="totalWords">0</div>
+                    <div class="text-gray-600">إجمالي الكلمات</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4 text-center">
+                    <div class="text-3xl font-bold text-green-500" id="addedCount">0</div>
+                    <div class="text-gray-600">كلمات مضافة</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4 text-center">
+                    <div class="text-3xl font-bold text-red-500" id="removedCount">0</div>
+                    <div class="text-gray-600">كلمات محذوفة</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4 text-center">
+                    <div class="text-3xl font-bold text-purple-500" id="similarityPercent">0%</div>
+                    <div class="text-gray-600">نسبة التشابه</div>
+                </div>
+            </div>
+
+            <!-- View Toggle for 2-text mode -->
+            <div id="viewToggle" class="flex justify-center mb-6">
+                <div class="bg-white rounded-lg p-1 shadow-md inline-flex">
+                    <button id="viewCombined" onclick="switchView('combined')" class="view-tab-active px-5 py-2 rounded-lg font-medium transition-all duration-300 border-b-3">
+                        📄 عرض موحد
+                    </button>
+                    <button id="viewSplit" onclick="switchView('split')" class="px-5 py-2 rounded-lg font-medium transition-all duration-300 hover:bg-gray-100">
+                        📑 عرض منقسم
+                    </button>
+                </div>
+            </div>
+
+            <!-- Diff Results -->
+            <div id="diffResults" class="grid grid-cols-1 gap-6"></div>
+            
+            <!-- Split View Results -->
+            <div id="splitResults" class="hidden">
+                <div class="split-view">
+                    <!-- Right Side - Old Text (Red) -->
+                    <div class="bg-white rounded-xl shadow-lg p-6 old-text-box">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="inline-block w-4 h-4 bg-red-500 rounded-full"></span>
+                            <h3 class="font-bold text-lg text-red-700">النص الأصلي (القديم)</h3>
+                        </div>
+                        <div class="text-sm text-gray-500 mb-3">الكلمات المحذوفة مميزة باللون الأحمر</div>
+                        <div id="oldTextResult" class="result-box bg-red-50 rounded-lg p-4 border-2 border-red-200"></div>
+                    </div>
+                    <!-- Left Side - New Text (Green) -->
+                    <div class="bg-white rounded-xl shadow-lg p-6 new-text-box">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="inline-block w-4 h-4 bg-green-500 rounded-full"></span>
+                            <h3 class="font-bold text-lg text-green-700">النص الجديد (المعدل)</h3>
+                        </div>
+                        <div class="text-sm text-gray-500 mb-3">الكلمات المضافة مميزة باللون الأخضر</div>
+                        <div id="newTextResult" class="result-box bg-green-50 rounded-lg p-4 border-2 border-green-200"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-4 mt-8">
+        <div class="container mx-auto text-center">
+            <p>أداة مقارنة النصوص - جميع الحقوق محفوظة © 2024</p>
+        </div>
+    </footer>
+
+    <script>
+        let currentMode = 2;
+        let currentView = 'combined';
+        let lastDiffResult = null;
+        let lastText1 = '';
+        let lastText2 = '';
+
+        // دالة لتحديد اتجاه النص تلقائياً
+        function detectTextDirection(text) {
+            if (!text || !text.trim()) return 'rtl';
+            
+            // إزالة الأرقام والرموز والمسافات للتحليل
+            const cleanText = text.replace(/[\d\s\.,!?;:'"()\[\]{}<>@#$%^&*+=\-_\\|\/`~]/g, '');
+            
+            if (!cleanText) return 'rtl';
+            
+            // نطاقات الأحرف العربية والعبرية (RTL)
+            const rtlChars = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
+            // نطاقات الأحرف اللاتينية (LTR)
+            const ltrChars = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/;
+            
+            let rtlCount = 0;
+            let ltrCount = 0;
+            
+            for (let i = 0; i < Math.min(cleanText.length, 100); i++) {
+                const char = cleanText[i];
+                if (rtlChars.test(char)) rtlCount++;
+                else if (ltrChars.test(char)) ltrCount++;
+            }
+            
+            return rtlCount >= ltrCount ? 'rtl' : 'ltr';
+        }
+
+        // تطبيق اتجاه النص على عنصر
+        function applyTextDirection(element, text) {
+            const direction = detectTextDirection(text);
+            element.setAttribute('dir', direction);
+            element.style.textAlign = direction === 'rtl' ? 'right' : 'left';
+        }
+
+        // تطبيق اتجاه النص تلقائياً على حقول الإدخال
+        function setupAutoDirection() {
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                // تطبيق الاتجاه عند الكتابة
+                textarea.addEventListener('input', function() {
+                    applyTextDirection(this, this.value);
+                });
+                
+                // تطبيق الاتجاه عند اللصق
+                textarea.addEventListener('paste', function() {
+                    setTimeout(() => {
+                        applyTextDirection(this, this.value);
+                    }, 10);
+                });
+            });
+        }
+
+        // تهيئة الصفحة
+        document.addEventListener('DOMContentLoaded', setupAutoDirection);
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode2').classList.toggle('tab-active', mode === 2);
+            document.getElementById('mode4').classList.toggle('tab-active', mode === 4);
+            document.getElementById('input2').classList.toggle('hidden', mode !== 2);
+            document.getElementById('input4').classList.toggle('hidden', mode !== 4);
+            document.getElementById('results').classList.add('hidden');
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.getElementById('viewCombined').classList.toggle('view-tab-active', view === 'combined');
+            document.getElementById('viewSplit').classList.toggle('view-tab-active', view === 'split');
+            document.getElementById('diffResults').classList.toggle('hidden', view === 'split');
+            document.getElementById('splitResults').classList.toggle('hidden', view === 'combined');
+            
+            if (view === 'split' && lastDiffResult) {
+                renderSplitView(lastDiffResult, lastText1, lastText2);
+            }
+        }
+
+        // تقسيم النص مع الحفاظ على المسافات والأسطر
+        function tokenize(text) {
+            const tokens = [];
+            let current = '';
+            let isSpace = false;
+            
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const charIsSpace = /\s/.test(char);
+                
+                if (tokens.length === 0) {
+                    current = char;
+                    isSpace = charIsSpace;
+                } else if (charIsSpace === isSpace) {
+                    current += char;
+                } else {
+                    tokens.push({ text: current, isSpace });
+                    current = char;
+                    isSpace = charIsSpace;
+                }
+            }
+            
+            if (current) {
+                tokens.push({ text: current, isSpace });
+            }
+            
+            return tokens;
+        }
+
+        function getWords(text) {
+            return text.trim().split(/\s+/).filter(w => w.length > 0);
+        }
+
+        // Longest Common Subsequence for diff
+        function lcs(arr1, arr2) {
+            const m = arr1.length;
+            const n = arr2.length;
+            const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (arr1[i - 1] === arr2[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1] + 1;
+                    } else {
+                        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                    }
+                }
+            }
+
+            // Backtrack to find LCS
+            const result = [];
+            let i = m, j = n;
+            while (i > 0 && j > 0) {
+                if (arr1[i - 1] === arr2[j - 1]) {
+                    result.unshift({ word: arr1[i - 1], i1: i - 1, i2: j - 1 });
+                    i--;
+                    j--;
+                } else if (dp[i - 1][j] > dp[i][j - 1]) {
+                    i--;
+                } else {
+                    j--;
+                }
+            }
+            return result;
+        }
+
+        function diffTexts(text1, text2) {
+            const words1 = getWords(text1);
+            const words2 = getWords(text2);
+            const common = lcs(words1, words2);
+            
+            const result = [];
+            let idx1 = 0, idx2 = 0, commonIdx = 0;
+            
+            let added = 0, removed = 0;
+
+            while (idx1 < words1.length || idx2 < words2.length) {
+                if (commonIdx < common.length) {
+                    const c = common[commonIdx];
+                    
+                    // Add removed words from text1
+                    while (idx1 < c.i1) {
+                        result.push({ word: words1[idx1], type: 'removed' });
+                        removed++;
+                        idx1++;
+                    }
+                    
+                    // Add added words from text2
+                    while (idx2 < c.i2) {
+                        result.push({ word: words2[idx2], type: 'added' });
+                        added++;
+                        idx2++;
+                    }
+                    
+                    // Add common word
+                    result.push({ word: c.word, type: 'same' });
+                    idx1++;
+                    idx2++;
+                    commonIdx++;
+                } else {
+                    // Remaining words
+                    while (idx1 < words1.length) {
+                        result.push({ word: words1[idx1], type: 'removed' });
+                        removed++;
+                        idx1++;
+                    }
+                    while (idx2 < words2.length) {
+                        result.push({ word: words2[idx2], type: 'added' });
+                        added++;
+                        idx2++;
+                    }
+                }
+            }
+
+            return { diff: result, added, removed, total: words1.length + words2.length };
+        }
+
+        function renderDiff(diff) {
+            return diff.map(item => {
+                if (item.type === 'added') {
+                    return `<span class="added">${escapeHtml(item.word)}</span>`;
+                } else if (item.type === 'removed') {
+                    return `<span class="removed">${escapeHtml(item.word)}</span>`;
+                } else if (item.type === 'changed') {
+                    return `<span class="changed">${escapeHtml(item.word)}</span>`;
+                }
+                return escapeHtml(item.word);
+            }).join(' ');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function calculateSimilarity(text1, text2) {
+            const words1 = new Set(getWords(text1));
+            const words2 = new Set(getWords(text2));
+            const intersection = [...words1].filter(w => words2.has(w)).length;
+            const union = new Set([...words1, ...words2]).size;
+            return union === 0 ? 100 : Math.round((intersection / union) * 100);
+        }
+
+        // عرض منقسم للنص القديم والجديد
+        function renderSplitView(diff, text1, text2) {
+            const oldTextResult = document.getElementById('oldTextResult');
+            const newTextResult = document.getElementById('newTextResult');
+            
+            // عرض النص القديم مع تمييز المحذوف
+            let oldHtml = '';
+            let newHtml = '';
+            
+            diff.forEach(item => {
+                if (item.type === 'removed') {
+                    oldHtml += `<span class="removed">${escapeHtml(item.word)}</span> `;
+                } else if (item.type === 'added') {
+                    newHtml += `<span class="added">${escapeHtml(item.word)}</span> `;
+                } else {
+                    oldHtml += escapeHtml(item.word) + ' ';
+                    newHtml += escapeHtml(item.word) + ' ';
+                }
+            });
+            
+            oldTextResult.innerHTML = oldHtml || '<span class="placeholder-text">لا يوجد نص</span>';
+            newTextResult.innerHTML = newHtml || '<span class="placeholder-text">لا يوجد نص</span>';
+            
+            // تطبيق اتجاه النص على صناديق النتائج
+            applyTextDirection(oldTextResult, text1);
+            applyTextDirection(newTextResult, text2);
+        }
+
+        // مقارنة النصوص مع الحفاظ على المسافات
+        function diffTextsWithSpaces(text1, text2) {
+            const tokens1 = tokenize(text1);
+            const tokens2 = tokenize(text2);
+            
+            const words1 = tokens1.filter(t => !t.isSpace).map(t => t.text);
+            const words2 = tokens2.filter(t => !t.isSpace).map(t => t.text);
+            
+            const common = lcs(words1, words2);
+            
+            const result = [];
+            let idx1 = 0, idx2 = 0, commonIdx = 0;
+            let added = 0, removed = 0;
+
+            while (idx1 < words1.length || idx2 < words2.length) {
+                if (commonIdx < common.length) {
+                    const c = common[commonIdx];
+                    
+                    while (idx1 < c.i1) {
+                        result.push({ word: words1[idx1], type: 'removed' });
+                        removed++;
+                        idx1++;
+                    }
+                    
+                    while (idx2 < c.i2) {
+                        result.push({ word: words2[idx2], type: 'added' });
+                        added++;
+                        idx2++;
+                    }
+                    
+                    result.push({ word: c.word, type: 'same' });
+                    idx1++;
+                    idx2++;
+                    commonIdx++;
+                } else {
+                    while (idx1 < words1.length) {
+                        result.push({ word: words1[idx1], type: 'removed' });
+                        removed++;
+                        idx1++;
+                    }
+                    while (idx2 < words2.length) {
+                        result.push({ word: words2[idx2], type: 'added' });
+                        added++;
+                        idx2++;
+                    }
+                }
+            }
+
+            return { diff: result, added, removed, total: words1.length + words2.length };
+        }
+
+        function compareTexts() {
+            const resultsDiv = document.getElementById('results');
+            const diffResultsDiv = document.getElementById('diffResults');
+            diffResultsDiv.innerHTML = '';
+
+            if (currentMode === 2) {
+                const text1 = document.getElementById('text1').value;
+                const text2 = document.getElementById('text2').value;
+
+                if (!text1.trim() || !text2.trim()) {
+                    alert('الرجاء إدخال النصين للمقارنة');
+                    return;
+                }
+
+                const { diff, added, removed, total } = diffTexts(text1, text2);
+                const similarity = calculateSimilarity(text1, text2);
+
+                // حفظ النتائج للعرض المنقسم
+                lastDiffResult = diff;
+                lastText1 = text1;
+                lastText2 = text2;
+
+                document.getElementById('totalWords').textContent = total;
+                document.getElementById('addedCount').textContent = added;
+                document.getElementById('removedCount').textContent = removed;
+                document.getElementById('similarityPercent').textContent = similarity + '%';
+
+                // عرض زر التبديل فقط في وضع النصين
+                document.getElementById('viewToggle').classList.remove('hidden');
+
+                // تحديد اتجاه النص المدمج
+                const combinedDirection = detectTextDirection(text1 + ' ' + text2);
+                
+                diffResultsDiv.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="font-bold text-lg text-gray-700 mb-4">نتيجة المقارنة بين النص الأول والثاني</h3>
+                        <div class="result-box bg-gray-50 rounded-lg p-4 border-2 border-gray-200" dir="${combinedDirection}" style="text-align: ${combinedDirection === 'rtl' ? 'right' : 'left'}">${renderDiff(diff)}</div>
+                    </div>
+                `;
+
+                // تحديث العرض المنقسم
+                renderSplitView(diff, text1, text2);
+
+                // إعادة ضبط العرض
+                if (currentView === 'split') {
+                    document.getElementById('diffResults').classList.add('hidden');
+                    document.getElementById('splitResults').classList.remove('hidden');
+                } else {
+                    document.getElementById('diffResults').classList.remove('hidden');
+                    document.getElementById('splitResults').classList.add('hidden');
+                }
+            } else {
+                // إخفاء زر التبديل في وضع 4 نصوص
+                document.getElementById('viewToggle').classList.add('hidden');
+                document.getElementById('splitResults').classList.add('hidden');
+                document.getElementById('diffResults').classList.remove('hidden');
+                const texts = [
+                    document.getElementById('text1_4').value,
+                    document.getElementById('text2_4').value,
+                    document.getElementById('text3_4').value,
+                    document.getElementById('text4_4').value
+                ];
+
+                const nonEmpty = texts.filter(t => t.trim()).length;
+                if (nonEmpty < 2) {
+                    alert('الرجاء إدخال نصين على الأقل للمقارنة');
+                    return;
+                }
+
+                let totalAdded = 0, totalRemoved = 0, totalWords = 0;
+                const comparisons = [];
+                const labels = ['الأول', 'الثاني', 'الثالث', 'الرابع'];
+                const colors = ['blue', 'green', 'yellow', 'red'];
+
+                // Compare each pair
+                for (let i = 0; i < 4; i++) {
+                    for (let j = i + 1; j < 4; j++) {
+                        if (texts[i].trim() && texts[j].trim()) {
+                            const { diff, added, removed, total } = diffTexts(texts[i], texts[j]);
+                            totalAdded += added;
+                            totalRemoved += removed;
+                            totalWords += total;
+                            comparisons.push({
+                                label: `النص ${labels[i]} ↔ النص ${labels[j]}`,
+                                diff,
+                                similarity: calculateSimilarity(texts[i], texts[j]),
+                                color1: colors[i],
+                                color2: colors[j]
+                            });
+                        }
+                    }
+                }
+
+                const avgSimilarity = comparisons.length > 0 
+                    ? Math.round(comparisons.reduce((a, b) => a + b.similarity, 0) / comparisons.length)
+                    : 0;
+
+                document.getElementById('totalWords').textContent = totalWords;
+                document.getElementById('addedCount').textContent = totalAdded;
+                document.getElementById('removedCount').textContent = totalRemoved;
+                document.getElementById('similarityPercent').textContent = avgSimilarity + '%';
+
+                comparisons.forEach((comp, index) => {
+                    // تحديد اتجاه النص للمقارنة
+                    const compTexts = texts.filter(t => t.trim());
+                    const compDirection = detectTextDirection(compTexts.join(' '));
+                    
+                    const div = document.createElement('div');
+                    div.className = 'bg-white rounded-xl shadow-lg p-6';
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-gray-700">${comp.label}</h3>
+                            <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                                التشابه: ${comp.similarity}%
+                            </span>
+                        </div>
+                        <div class="result-box bg-gray-50 rounded-lg p-4 border-2 border-gray-200" dir="${compDirection}" style="text-align: ${compDirection === 'rtl' ? 'right' : 'left'}">${renderDiff(comp.diff)}</div>
+                    `;
+                    diffResultsDiv.appendChild(div);
+                });
+            }
+
+            resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function clearAll() {
+            document.getElementById('text1').value = '';
+            document.getElementById('text2').value = '';
+            document.getElementById('text1_4').value = '';
+            document.getElementById('text2_4').value = '';
+            document.getElementById('text3_4').value = '';
+            document.getElementById('text4_4').value = '';
+            document.getElementById('results').classList.add('hidden');
+        }
+
+        function loadExample(lang = 'ar') {
+            const text1El = currentMode === 2 ? document.getElementById('text1') : document.getElementById('text1_4');
+            const text2El = currentMode === 2 ? document.getElementById('text2') : document.getElementById('text2_4');
+            
+            if (lang === 'ar') {
+                if (currentMode === 2) {
+                    document.getElementById('text1').value = `مرحباً بكم في موقعنا الإلكتروني الجديد.
+نحن سعداء بزيارتكم ونتمنى لكم تجربة ممتعة.
+
+خدماتنا تشمل:
+- التصميم
+- البرمجة
+- الدعم الفني`;
+                    document.getElementById('text2').value = `مرحباً بكم في موقعنا الرقمي الجديد والمطور.
+نحن سعداء جداً بزيارتكم ونتمنى لكم تجربة رائعة ومميزة.
+
+خدماتنا المتميزة تشمل:
+- التصميم الإبداعي
+- البرمجة المتقدمة
+- الدعم الفني المتواصل
+- الاستشارات`;
+                    applyTextDirection(document.getElementById('text1'), document.getElementById('text1').value);
+                    applyTextDirection(document.getElementById('text2'), document.getElementById('text2').value);
+                } else {
+                    document.getElementById('text1_4').value = 'البرمجة هي فن كتابة الأكواد لحل المشكلات.';
+                    document.getElementById('text2_4').value = 'البرمجة هي علم وفن كتابة الأكواد لحل المشكلات المعقدة.';
+                    document.getElementById('text3_4').value = 'البرمجة هي مهارة كتابة الأكواد لإنشاء البرامج.';
+                    document.getElementById('text4_4').value = 'البرمجة هي فن وعلم كتابة الأكواد لحل المشكلات وإنشاء التطبيقات.';
+                    ['text1_4', 'text2_4', 'text3_4', 'text4_4'].forEach(id => {
+                        const el = document.getElementById(id);
+                        applyTextDirection(el, el.value);
+                    });
+                }
+            } else {
+                if (currentMode === 2) {
+                    document.getElementById('text1').value = `Welcome to our new website.
+We are happy to have you here and wish you a pleasant experience.
+
+Our services include:
+- Design
+- Programming
+- Technical Support`;
+                    document.getElementById('text2').value = `Welcome to our new and improved digital platform.
+We are very happy to have you here and wish you an amazing and unique experience.
+
+Our premium services include:
+- Creative Design
+- Advanced Programming
+- Continuous Technical Support
+- Consulting`;
+                    applyTextDirection(document.getElementById('text1'), document.getElementById('text1').value);
+                    applyTextDirection(document.getElementById('text2'), document.getElementById('text2').value);
+                } else {
+                    document.getElementById('text1_4').value = 'Programming is the art of writing code to solve problems.';
+                    document.getElementById('text2_4').value = 'Programming is the science and art of writing code to solve complex problems.';
+                    document.getElementById('text3_4').value = 'Programming is the skill of writing code to create software.';
+                    document.getElementById('text4_4').value = 'Programming is the art and science of writing code to solve problems and build applications.';
+                    ['text1_4', 'text2_4', 'text3_4', 'text4_4'].forEach(id => {
+                        const el = document.getElementById(id);
+                        applyTextDirection(el, el.value);
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
